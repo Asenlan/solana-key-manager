@@ -1,5 +1,9 @@
 # Solana Key Manager
 
+[中文](README_CN.md) | [English](README.md)
+
+---
+
 Secure ed25519 keypair manager. Generate, encrypt, sign — never store plaintext private keys.
 
 ## Features

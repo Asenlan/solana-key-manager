@@ -1,3 +1,7 @@
+[English](README.md) | [中文](README_CN.md)
+
+---
+
 # Solana Key Manager
 
 安全的 ed25519 密钥对管理工具。生成、加密、签名——绝不明文存储私钥。
