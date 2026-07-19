@@ -1,0 +1,6 @@
+target/
+**/*.rs.bk
+.env
+.DS_Store
+# Never commit actual key material
+*.enc

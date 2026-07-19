@@ -1,6 +1,6 @@
 # Solana Key Manager
 
-Secure ed25519 keypair manager for Solana. Generate, encrypt, sign — no plaintext keys on disk.
+安全的 ed25519 密钥对管理工具。生成、加密、签名——绝不明文存储私钥。
 
 ```
 $ solana-km generate --name main --words 24
@@ -15,120 +15,53 @@ $ solana-km generate --name main --words 24
   ══════════════════════════════════════════════
 
 Encryption password: ********
-✓ Saved as 'main' in wallet.
+✓ Saved as 'main'.
 ```
 
-## Features
+## 功能
 
-- **BIP39 Mnemonics** — 12 or 24 word phrases (256-bit entropy)
-- **AES-256-GCM Encryption** — every keypair encrypted at rest with Argon2id PBKDF
-- **Offline Signing** — sign messages without network connectivity
-- **Solana Off-Chain Format** — compatible with Phantom / Solana CLI signing
-- **Import/Export** — keypair.json, base58 secret key, mnemonic restore
-- **Multiple Identities** — manage dev, mainnet, test wallets from one CLI
-- **Signature Verification** — verify any ed25519 signature against a public key
+- **BIP39 助记词** — 12 或 24 词助记词（128/256 位熵）
+- **AES-256-GCM 加密** — 所有密钥对经 Argon2id 密钥派生后加密存储
+- **离线签名** — 不联网即可签名消息
+- **Solana 链下格式** — 兼容 Phantom 钱包 / Solana CLI 的签名格式
+- **导入/导出** — keypair.json、base58 私钥、助记词恢复
+- **多身份管理** — 一个 CLI 管理开发、主网、测试钱包
+- **签名验证** — 验证任意 ed25519 签名
 
-## Commands
+## 命令
 
-| Command | Description |
-|---------|-------------|
-| `generate` | New keypair + BIP39 mnemonic, encrypted to disk |
-| `restore` | Recover keypair from mnemonic phrase |
-| `import` | Add existing keypair from file or base58 key |
-| `export` | Output secret key (with warning) |
-| `sign` | Sign a message with stored identity |
-| `verify` | Verify signature ↔ message ↔ pubkey |
-| `list` | Show all stored identities |
-| `show` | Display public key and metadata |
-| `delete` | Remove identity from wallet |
+| 命令 | 说明 |
+|------|------|
+| `generate` | 生成新密钥 + BIP39 助记词，加密存储 |
+| `restore` | 从助记词恢复密钥 |
+| `import` | 从文件或 base58 密钥导入 |
+| `export` | 导出私钥（带警告） |
+| `sign` | 用存储的身份签名消息 |
+| `verify` | 验证签名 ↔ 消息 ↔ 公钥 |
+| `list` | 列出所有身份 |
+| `show` | 查看身份详情 |
+| `delete` | 删除身份 |
 
-## Installation
-
-```bash
-cargo install --git https://github.com/user/solana-key-manager
-```
-
-## Usage
-
-```bash
-# Generate a 24-word mnemonic wallet
-solana-km generate --name main --words 24
-
-# Generate ephemeral (no save) — print and forget
-solana-km generate --ephemeral
-
-# Restore from mnemonic
-solana-km restore --name recovered
-
-# Import existing keypair.json
-solana-km import main --file ~/.config/solana/id.json
-
-# Sign a message
-solana-km sign main --message "Hello, Solana!"
-
-# Sign in Solana off-chain format
-solana-km sign main --message "Login to dApp" --solana-format
-
-# Verify a signature
-solana-km verify 7xK...pubkey --message "Hello" --signature 5nS...sig
-
-# List all stored identities
-solana-km list
-
-# Export secret key (DANGEROUS)
-solana-km export main --json
-```
-
-## Security Model
+## 安全模型
 
 ```
-┌──────────┐     Argon2id      ┌──────────┐     AES-256-GCM    ┌──────────────┐
-│ Password │ ────────────────▶ │ 256-bit   │ ────────────────▶ │ Encrypted    │
-│          │   (19 MiB, 2x)    │ Key       │   (random nonce)  │ Keypair.enc  │
-└──────────┘                   └──────────┘                    └──────────────┘
+密码 ──Argon2id(19MiB, 2次)──▶ 256位密钥 ──AES-256-GCM──▶ 加密文件
+                                    (随机 nonce)        (~/.solana-key-manager/)
 ```
 
-- **Passwords never stored** — only verified via AEAD authentication
-- **Unique salt + nonce per encryption** — same plaintext produces different ciphertext
-- **Argon2id with 19 MiB memory** — resistant to GPU brute-force
-- **Key material zeroized** — `zeroize` crate ensures memory cleanup after use
-- **No network calls** for generate/sign/verify — fully offline capable
+- **密码不存储** — 通过 AEAD 认证标签隐式验证
+- **每次加密使用不同盐+nonce** — 相同明文产生不同密文
+- **Argon2id 19 MiB 内存** — 抗 GPU 暴力破解
+- **私钥及时清零** — `zeroize` crate 确保内存安全
 
-## Wallet Storage
+## 技术栈
 
-```
-~/.solana-key-manager/
-├── identities/
-│   ├── main.enc        # AES-256-GCM encrypted keypair
-│   ├── dev.enc
-│   └── test.enc
-└── config.toml         # Wallet config marker
-```
+- **ed25519-dalek** — ed25519 密钥生成和签名
+- **bip39** — BIP39 助记词生成和验证
+- **aes-gcm + argon2** — 加密和密钥派生
+- **bs58** — Solana 地址编码
+- **clap** — CLI 参数解析
 
-## Architecture
-
-```
-src/
-├── main.rs       # CLI entry point (clap + 9 subcommands)
-├── keygen.rs     # Keypair generation, BIP39, import/export
-├── crypto.rs     # AES-256-GCM encrypt/decrypt with Argon2id
-├── wallet.rs     # Identity storage and retrieval
-└── sign.rs       # ed25519 signing and verification
-```
-
-## Tech Stack
-
-| Component | Crate | Purpose |
-|-----------|-------|---------|
-| CLI | `clap` 4 | Argument parsing |
-| Keypair | `ed25519-dalek` 2 + `solana-sdk` | Key generation, signing |
-| Mnemonic | `bip39` 2 | BIP39 phrase generation and validation |
-| Encryption | `aes-gcm` 0.10 | AES-256-GCM authenticated encryption |
-| PBKDF | `argon2` 0.5 | Argon2id key derivation (OWASP recommended) |
-| Encoding | `bs58`, `base64` | Solana address/secret encoding |
-| Security | `zeroize` 1 | Secure memory cleanup |
-| Password | `rpassword` 7 | Hidden password prompt in terminal |
-
-## License
+## 许可
 
 MIT
